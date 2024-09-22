@@ -1,0 +1,78 @@
+{
+	"info": {
+		"_postman_id": "24a1640b-77dd-40d8-a8a6-1a16ed22f03b",
+		"name": "FeeManagement",
+		"description": "This API manages transactions related to student fees. It allows you to create transactions and retrieve receipts for students.EndFragment",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "2572841"
+	},
+	"item": [
+		{
+			"name": "StudentPayment- ViewTransaction",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\r\n  \"studentId\": 101,\r\n  \"transactionId\": 1,\r\n  \"amount\": 100.00,\r\n  \"transactionDate\": \"2023-09-22T12:00:00\",\r\n  \"cardType\": \"Visa\",\r\n  \"referenceNumber\": \"ABC123\",\r\n  \"status\": \"SUCCESS\"\r\n\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8081//api/v1/receipts/students/101",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"",
+						"api",
+						"v1",
+						"receipts",
+						"students",
+						"101"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Student Fees Create",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\r\n  \"studentId\": 101,\r\n  \"amount\": 100.00,\r\n  \"transactionDate\": \"2023-09-22T12:00:00\",\r\n  \"cardType\": \"Visa\",\r\n  \"referenceNumber\": \"ABC123\",\r\n  \"status\": \"SUCCESS\"\r\n\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8081/api/v1/receipts/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"v1",
+						"receipts",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
