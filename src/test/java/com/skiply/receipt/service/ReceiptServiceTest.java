@@ -1,265 +1,124 @@
 package com.skiply.receipt.service;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
+import java.time.LocalDateTime;
+import java.util.Arrays;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Example;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.repository.query.FluentQuery.FetchableFluentQuery;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.web.client.RestTemplate;
 
 import com.skiply.receipt.entity.Receipt;
+import com.skiply.receipt.entity.Student_Receipt_Dto;
 import com.skiply.receipt.exception.ResourceNotFoundException;
 import com.skiply.receipt.repository.ReceiptRepository;
 
-public class ReceiptServiceTest {
+class ReceiptServiceTest {
 
+    @InjectMocks
     private ReceiptService receiptService;
+
+    @Mock
+    private RestTemplate restTemplate;
+
+    @Mock
     private ReceiptRepository receiptRepository;
 
+    private Receipt receipt;
+    private Student_Receipt_Dto studentReceiptDto;
+
     @BeforeEach
-    public void setup() {
-        // Create an instance of the ReceiptRepository
- //       receiptRepository = new InMemoryReceiptRepository(); // Use an in-memory implementation for testing
-   //     receiptService = new ReceiptService();
-    //    receiptService.setTransactionRepository(receiptRepository); // Assume there's a setter or use constructor
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+
+        // Sample Receipt object
+        receipt = new Receipt();
+        receipt.setTransactionId(1);
+        receipt.setStudentId(1001);
+        receipt.setAmount(BigDecimal.valueOf(200.0));
+        receipt.setStatus("Completed");
+        receipt.setTransactionDate(LocalDateTime.now());  // Set a valid transactionDate
+
+        // Sample Student_Receipt_Dto object
+        studentReceiptDto = new Student_Receipt_Dto();
+        studentReceiptDto.setStudentId(1001);
+        studentReceiptDto.setStudentName("John Doe");
+        studentReceiptDto.setGrade("A");
     }
 
     @Test
-    public void testAddTransaction_Success() {
-        // Create a transaction
-        Receipt transaction = new Receipt();
-        transaction.setStudentId(1);
-        transaction.setAmount(BigDecimal.valueOf(100.0));
+    void testAddTransaction_studentExists() {
+        // Mock RestTemplate behavior for a successful student fetch
+        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+                .thenReturn(studentReceiptDto);
 
-        // Assume student check passes, so we can directly save the transaction
-        // Simulate saving the transaction
-        Receipt savedTransaction = new Receipt();
-        savedTransaction.setAmount(BigDecimal.valueOf(100.0));
-        savedTransaction.setStudentId(1);
+        // Mock ReceiptRepository save operation
+        when(receiptRepository.save(any(Receipt.class))).thenReturn(receipt);
 
-        // Assertions
-        assertNotNull(savedTransaction);
-        assertEquals(BigDecimal.valueOf(100.0), savedTransaction.getAmount());
-        assertEquals(1, savedTransaction.getStudentId());
+        // Call the method under test
+        Receipt savedReceipt = receiptService.addTransaction(receipt);
+
+        // Assert that the receipt was saved
+        assertNotNull(savedReceipt);
+        assertEquals(1001, savedReceipt.getStudentId());
+        assertEquals(0, savedReceipt.getAmount().compareTo(BigDecimal.valueOf(200.0))); // Use compareTo for BigDecimal
     }
 
     @Test
-    public void testgetReceiptByStudentId() {
-        // Create a transaction for a non-existent student
-    	 Receipt transaction = new Receipt();
-         transaction.setStudentId(1);
-         transaction.setAmount(BigDecimal.valueOf(100.0));
+    void testAddTransaction_studentDoesNotExist() {
+        // Mock RestTemplate to return null (student not found)
+        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+                .thenReturn(null);
 
-         // Assume student check passes, so we can directly save the transaction
-         // Simulate saving the transaction
-         Receipt savedTransaction = new Receipt();
-         savedTransaction.setAmount(BigDecimal.valueOf(100.0));
-         savedTransaction.setStudentId(1);
-
-         // Assertions
-         assertNotNull(savedTransaction);
-         assertEquals(BigDecimal.valueOf(100.0), savedTransaction.getAmount());
-         assertEquals(1, savedTransaction.getStudentId());
-    }
-}
-
-// In-memory repository implementation for testing
-class InMemoryReceiptRepository implements ReceiptRepository {
-    private List<Receipt> receipts = new ArrayList<>();
-
-    @Override
-    public Receipt save(Receipt receipt) {
-        receipts.add(receipt);
-        return receipt; // Simulate saving by returning the same receipt
+        // Test that an exception is thrown when the student is not found
+        assertThrows(ResourceNotFoundException.class, () -> receiptService.addTransaction(receipt));
     }
 
-	@Override
-	public void flush() {
-		// TODO Auto-generated method stub
-		
-	}
+    @Test
+    void testGetReceiptByStudentId_studentExistsAndHasTransactions() {
+        // Mock RestTemplate behavior for fetching student
+        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+                .thenReturn(studentReceiptDto);
 
-	@Override
-	public <S extends Receipt> S saveAndFlush(S entity) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+        // Mock ReceiptRepository to return a list of transactions
+        when(receiptRepository.findByStudentId(1001)).thenReturn(Arrays.asList(receipt));
 
-	@Override
-	public <S extends Receipt> List<S> saveAllAndFlush(Iterable<S> entities) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+        // Call the method under test
+        Student_Receipt_Dto result = receiptService.getReceiptByStudentId(1001);
 
-	@Override
-	public void deleteAllInBatch(Iterable<Receipt> entities) {
-		// TODO Auto-generated method stub
-		
-	}
+        // Assert that the receipt details are correctly returned
+        assertNotNull(result);
+        assertEquals(1001, result.getStudentId());
+        assertEquals("John Doe", result.getStudentName());
+        assertEquals(0, result.getAmount().compareTo(BigDecimal.valueOf(200.0))); // Use compareTo for BigDecimal
+    }
 
-	@Override
-	public void deleteAllByIdInBatch(Iterable<Integer> ids) {
-		// TODO Auto-generated method stub
-		
-	}
+    @Test
+    void testGetReceiptByStudentId_noTransactionsFound() {
+        // Mock RestTemplate to return a student
+        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+                .thenReturn(studentReceiptDto);
 
-	@Override
-	public void deleteAllInBatch() {
-		// TODO Auto-generated method stub
-		
-	}
+        // Mock ReceiptRepository to return an empty list of transactions
+        when(receiptRepository.findByStudentId(1001)).thenReturn(Arrays.asList());
 
-	@Override
-	public Receipt getOne(Integer id) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+        // Test that an exception is thrown when no transactions are found
+        assertThrows(ResourceNotFoundException.class, () -> receiptService.getReceiptByStudentId(1001));
+    }
 
-	@Override
-	public Receipt getById(Integer id) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+    @Test
+    void testGetReceiptByStudentId_studentNotFound() {
+        // Mock RestTemplate to return null (student not found)
+        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+                .thenReturn(null);
 
-	@Override
-	public Receipt getReferenceById(Integer id) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public <S extends Receipt> List<S> findAll(Example<S> example) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public <S extends Receipt> List<S> findAll(Example<S> example, Sort sort) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public <S extends Receipt> List<S> saveAll(Iterable<S> entities) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public List<Receipt> findAll() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public List<Receipt> findAllById(Iterable<Integer> ids) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Optional<Receipt> findById(Integer id) {
-		// TODO Auto-generated method stub
-		return Optional.empty();
-	}
-
-	@Override
-	public boolean existsById(Integer id) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public long count() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public void deleteById(Integer id) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void delete(Receipt entity) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void deleteAllById(Iterable<? extends Integer> ids) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void deleteAll(Iterable<? extends Receipt> entities) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void deleteAll() {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public List<Receipt> findAll(Sort sort) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Page<Receipt> findAll(Pageable pageable) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public <S extends Receipt> Optional<S> findOne(Example<S> example) {
-		// TODO Auto-generated method stub
-		return Optional.empty();
-	}
-
-	@Override
-	public <S extends Receipt> Page<S> findAll(Example<S> example, Pageable pageable) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public <S extends Receipt> long count(Example<S> example) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public <S extends Receipt> boolean exists(Example<S> example) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public <S extends Receipt, R> R findBy(Example<S> example, Function<FetchableFluentQuery<S>, R> queryFunction) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public List<Receipt> findByStudentId(int studentId) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-    // Implement other methods as needed for your tests
+        // Test that an exception is thrown when the student is not found
+        assertThrows(ResourceNotFoundException.class, () -> receiptService.getReceiptByStudentId(1001));
+    }
 }

@@ -1,83 +1,73 @@
 package com.skiply.receipt.controller;
-
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.skiply.receipt.entity.Receipt;
 import com.skiply.receipt.entity.Student_Receipt_Dto;
 import com.skiply.receipt.service.ReceiptService;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import reactor.core.publisher.Mono;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
 
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(ReceiptController.class)
 public class ReceiptControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @InjectMocks
-    private ReceiptController receiptController;
-
-    @Mock
+    @MockBean
     private ReceiptService receiptService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private Receipt receipt;
+    private Student_Receipt_Dto studentReceiptDto;
+
     @BeforeEach
-    public void setup() {
-        MockitoAnnotations.openMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(receiptController).build();
+    void setUp() {
+        receipt = new Receipt();
+        receipt.setTransactionId(1);
+        receipt.setStudentId(1001);
+        receipt.setAmount(BigDecimal.valueOf(200.0));  // Using BigDecimal.valueOf for amount
+        receipt.setStatus("Completed");
+
+        studentReceiptDto = new Student_Receipt_Dto();
+        studentReceiptDto.setStudentId(1001);
+        studentReceiptDto.setStudentName("John Doe");
+        studentReceiptDto.setGrade("A");
+        studentReceiptDto.setAmount(BigDecimal.valueOf(200.0));  // Also using BigDecimal here
     }
 
-   
-    public void testCreateTransaction() throws Exception {
-        // Create a Receipt object for testing
-        Receipt receipt = new Receipt();
-        receipt.setStudentId(1);
-        receipt.setAmount(new BigDecimal(1000));
-        receipt.setStatus("completed");
-        receipt.setCardType("Credit Card");
-
-        // Mock the addTransaction method to return the same Receipt
+  @Test
+    void testCreateTransaction() throws Exception {
         when(receiptService.addTransaction(any(Receipt.class))).thenReturn(receipt);
 
-        // Perform the POST request with the Receipt object
         mockMvc.perform(post("/api/v1/receipts/transactions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(new ObjectMapper().writeValueAsString(receipt)))
-                .andExpect(status().isOk());
+                .content(objectMapper.writeValueAsString(receipt)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.transactionId").value(1))
+                .andExpect(jsonPath("$.studentId").value(1001))
+                .andExpect(jsonPath("$.amount").value(200.0));  // JSON will represent BigDecimal as Double
     }
 
+   @Test
+    void testGetReceiptByStudentId() throws Exception {
+        when(receiptService.getReceiptByStudentId(1001)).thenReturn(studentReceiptDto);
 
-   
-    public void testGetReceipt() throws Exception {
-        Integer studentId = 1;
-        Student_Receipt_Dto receiptDto = new Student_Receipt_Dto();
-        receiptDto.setStudentId(studentId);
-
-        // Mock the getReceiptByStudentId method to return the Receipt DTO
-        when(receiptService.getReceiptByStudentId(studentId)).thenReturn(Mono.just(receiptDto));
-
-        // Perform the GET request to retrieve the receipt using the correct endpoint
-        mockMvc.perform(get("/api/v1/receipts/" + studentId)
-                .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/receipts/students/1001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.studentId").value(1001))
+                .andExpect(jsonPath("$.studentName").value("John Doe"))
+                .andExpect(jsonPath("$.amount").value(200.0));  // Compare with Double since JSON uses Double
     }
-
-
-
-
 }
