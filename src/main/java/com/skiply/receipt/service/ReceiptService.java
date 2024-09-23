@@ -1,14 +1,10 @@
 package com.skiply.receipt.service;
-
-import java.util.List;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
+import com.skiply.receipt.config.StudentManagementFeignClient;
 import com.skiply.receipt.entity.Receipt;
 import com.skiply.receipt.entity.Student_Receipt_Dto;
 import com.skiply.receipt.exception.ResourceNotFoundException;
@@ -16,28 +12,25 @@ import com.skiply.receipt.repository.ReceiptRepository;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 
+import java.util.List;
+
 @Service
 public class ReceiptService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ReceiptService.class); // Logger
+    private static final Logger logger = LoggerFactory.getLogger(ReceiptService.class);
 
     @Autowired
     private ReceiptRepository transactionRepository;
 
     @Autowired
-    private RestTemplate restTemplate; // Use RestTemplate instead of WebClient
-
-    @Value("${student.management.service.url}")
-    private String studentManagementServiceUrl;
+    private StudentManagementFeignClient studentManagementFeignClient;  // Inject Feign Client
 
     @CircuitBreaker(name = "studentService", fallbackMethod = "studentServiceFallback")
     public Receipt addTransaction(Receipt transaction) {
-        // Call Student Management Service to check if student exists
-        String studentCheckUrl = studentManagementServiceUrl + "/" + transaction.getStudentId();
-        logger.info("Calling Student Management Service with URL: {}", studentCheckUrl); // Log the URL
+        // Call Student Management Service using Feign Client
+        logger.info("Calling Student Management Service for student ID: {}", transaction.getStudentId());
 
-        // Use RestTemplate to make a synchronous GET request
-        Student_Receipt_Dto student = restTemplate.getForObject(studentCheckUrl, Student_Receipt_Dto.class);
+        Student_Receipt_Dto student = studentManagementFeignClient.getStudentById(transaction.getStudentId());
 
         if (student != null) {
             logger.info("Student found: {}", student.getStudentId());
@@ -51,20 +44,14 @@ public class ReceiptService {
 
     @CircuitBreaker(name = "studentService", fallbackMethod = "studentServiceFallbackForGetReceipt")
     public Student_Receipt_Dto getReceiptByStudentId(int studentId) {
-        // Fetch student details
-        String studentCheckUrl = studentManagementServiceUrl + "/" + studentId;
-        logger.info("Fetching student details with URL: {}", studentCheckUrl);
+        logger.info("Fetching student details for student ID: {}", studentId);
 
-        // Use RestTemplate to get the student details
-        Student_Receipt_Dto student = restTemplate.getForObject(studentCheckUrl, Student_Receipt_Dto.class);
+        // Fetch student details using Feign Client
+        Student_Receipt_Dto student = studentManagementFeignClient.getStudentById(studentId);
 
         // Fetch transaction details for the student
         List<Receipt> transactions = transactionRepository.findByStudentId(studentId);
 
-        if (student == null) {
-            logger.error("Student not found with ID: {}", studentId);
-            throw new ResourceNotFoundException("Student not found with ID: " + studentId);
-        }
 
         if (!transactions.isEmpty()) {
             Receipt latestTransaction = transactions.get(transactions.size() - 1);
@@ -79,6 +66,7 @@ public class ReceiptService {
             receipt.setCardType(latestTransaction.getCardType());
             receipt.setReferenceNumber(latestTransaction.getReferenceNumber());
             receipt.setStatus(latestTransaction.getStatus());
+            receipt.setSchoolName(student.getSchoolName());
 
             logger.info("Returning receipt for student ID: {}", studentId);
             return receipt;
@@ -88,15 +76,14 @@ public class ReceiptService {
         }
     }
 
-    // Fallback method for addTransaction in case of circuit breaker open or failure
+    // Fallback methods
     public Receipt studentServiceFallback(Receipt transaction, Throwable t) {
         logger.error("Student service is unavailable: {}. Cause: {}", transaction.getStudentId(), t.getMessage());
-        throw new ResourceNotFoundException("Student service is unavailable for ID: " + transaction.getStudentId());
+        throw new ResourceNotFoundException("Student is unavailable for ID: " + transaction.getStudentId());
     }
 
-    // Fallback method for getReceiptByStudentId in case of circuit breaker open or failure
     public Student_Receipt_Dto studentServiceFallbackForGetReceipt(int studentId, Throwable t) {
         logger.error("Student service is unavailable for student ID: {}. Cause: {}", studentId, t.getMessage());
-        throw new ResourceNotFoundException("Student service is unavailable. Please try again later.");
+        throw new ResourceNotFoundException("Student  is unavailable. Please try again later.");
     }
 }

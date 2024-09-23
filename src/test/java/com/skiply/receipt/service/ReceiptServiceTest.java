@@ -1,23 +1,29 @@
 package com.skiply.receipt.service;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Arrays;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.web.client.RestTemplate;
-
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Arrays;
 import com.skiply.receipt.entity.Receipt;
 import com.skiply.receipt.entity.Student_Receipt_Dto;
 import com.skiply.receipt.exception.ResourceNotFoundException;
 import com.skiply.receipt.repository.ReceiptRepository;
+import com.skiply.receipt.config.StudentManagementFeignClient; 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.when;
+
 
 class ReceiptServiceTest {
 
@@ -25,7 +31,7 @@ class ReceiptServiceTest {
     private ReceiptService receiptService;
 
     @Mock
-    private RestTemplate restTemplate;
+    private StudentManagementFeignClient studentManagementClient;  // Mock the Feign Client
 
     @Mock
     private ReceiptRepository receiptRepository;
@@ -54,8 +60,8 @@ class ReceiptServiceTest {
 
     @Test
     void testAddTransaction_studentExists() {
-        // Mock RestTemplate behavior for a successful student fetch
-        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+        // Mock Feign Client behavior for a successful student fetch
+        when(studentManagementClient.getStudentById(anyInt()))
                 .thenReturn(studentReceiptDto);
 
         // Mock ReceiptRepository save operation
@@ -72,8 +78,8 @@ class ReceiptServiceTest {
 
     @Test
     void testAddTransaction_studentDoesNotExist() {
-        // Mock RestTemplate to return null (student not found)
-        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+        // Mock Feign Client to return null (student not found)
+        when(studentManagementClient.getStudentById(anyInt()))
                 .thenReturn(null);
 
         // Test that an exception is thrown when the student is not found
@@ -82,8 +88,8 @@ class ReceiptServiceTest {
 
     @Test
     void testGetReceiptByStudentId_studentExistsAndHasTransactions() {
-        // Mock RestTemplate behavior for fetching student
-        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+        // Mock Feign Client behavior for fetching student
+        when(studentManagementClient.getStudentById(anyInt()))
                 .thenReturn(studentReceiptDto);
 
         // Mock ReceiptRepository to return a list of transactions
@@ -101,8 +107,8 @@ class ReceiptServiceTest {
 
     @Test
     void testGetReceiptByStudentId_noTransactionsFound() {
-        // Mock RestTemplate to return a student
-        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+        // Mock Feign Client to return a student
+        when(studentManagementClient.getStudentById(anyInt()))
                 .thenReturn(studentReceiptDto);
 
         // Mock ReceiptRepository to return an empty list of transactions
@@ -114,8 +120,8 @@ class ReceiptServiceTest {
 
     @Test
     void testGetReceiptByStudentId_studentNotFound() {
-        // Mock RestTemplate to return null (student not found)
-        when(restTemplate.getForObject(anyString(), eq(Student_Receipt_Dto.class)))
+        // Mock Feign Client to return null (student not found)
+        when(studentManagementClient.getStudentById(anyInt()))
                 .thenReturn(null);
 
         // Test that an exception is thrown when the student is not found

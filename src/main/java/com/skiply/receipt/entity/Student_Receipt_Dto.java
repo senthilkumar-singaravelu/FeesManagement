@@ -12,7 +12,7 @@ public class Student_Receipt_Dto{
 	    private String cardType;
 	    private String referenceNumber;
 	    private String status;
-		public Integer getTransactionId() {
+	  	public Integer getTransactionId() {
 			return transactionId;
 		}
 		public void setTransactionId(Integer transactionId) {

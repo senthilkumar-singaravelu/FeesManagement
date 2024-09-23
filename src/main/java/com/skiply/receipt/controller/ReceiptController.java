@@ -30,11 +30,9 @@ public class ReceiptController {
     @Operation(summary = "Get Receipt by Student ID")
     @GetMapping("/api/v1/receipts/students/{studentId}")
     public ResponseEntity<Student_Receipt_Dto> getReceipt(@PathVariable Integer studentId) {
-        try {
+    
             Student_Receipt_Dto receiptDto = receiptService.getReceiptByStudentId(studentId);
             return ResponseEntity.ok(receiptDto);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        
     }
 }
