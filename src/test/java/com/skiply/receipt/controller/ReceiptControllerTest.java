@@ -56,7 +56,7 @@ public class ReceiptControllerTest {
         mockMvc.perform(post("/api/v1/receipts/transactions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(receipt)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.transactionId").value(1))
                 .andExpect(jsonPath("$.studentId").value(1001))
                 .andExpect(jsonPath("$.amount").value(200.0));  // JSON will represent BigDecimal as Double

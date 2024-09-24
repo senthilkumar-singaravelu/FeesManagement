@@ -99,7 +99,6 @@ class ReceiptServiceTest {
         Student_Receipt_Dto result = receiptService.getReceiptByStudentId(1001);
 
         // Assert that the receipt details are correctly returned
-        assertNotNull(result);
         assertEquals(1001, result.getStudentId());
         assertEquals("John Doe", result.getStudentName());
         assertEquals(0, result.getAmount().compareTo(BigDecimal.valueOf(200.0))); // Use compareTo for BigDecimal
